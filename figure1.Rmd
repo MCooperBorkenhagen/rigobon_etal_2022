@@ -3,6 +3,8 @@ title: "Rigobon et al. (2022) - Figure 1"
 output:
   html_document:
     df_print: paged
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -23,18 +25,17 @@ options(knitr.table.format = "latex")
 options(knitr.kable.NA = '')
 
 
-e = read_xlsx('errorvis_spelling_dist_upd.xlsx') %>% 
+e = read_xlsx('errorvis_spelling_dist_data.xlsx') %>% 
   mutate(item_familiarity = case_when(item_familiarity == 1 ~ 'Familiar',
                                       item_familiarity == 0 ~ 'Unfamiliar'))
 
 
-
 ```
 
-### Main figure: scatterplot of incorrect spellings to target ("assiduous")
-This is the candidate for the figure. Here the points (labels) are jittered to minimize overlapping. Remember though that the jittering (called within the `position` kwarg in `geom_label()`) introduces randomness into rendering the plot. In order to find the just right figure for the publication, we will need to re-render the plot until we find a jittering that we are satisfied with. The reason for this jittering is that without it the misspelled forms would overlap at each level of x- and y- such that you could only see one word, and the rest would be plotted behind it.
+## Figure 1: scatterplot of incorrect spellings to target ("assiduous")
+This is Figure 1 in the paper. Here the points (labels) are jittered to minimize overlapping. The jittering (called within the `position` argument in `geom_label()`) introduces randomness into rendering the plot. In order to find the just right figure for the publication, the plot needs to be rendered until a satisfactory jittering is found. Without this visual manipulation of the data, misspelled forms overlap at each level of x- and y- such that you can only see one word, with the rest plotted behind it (which of course is undesirable because we want to see all the words in the figure).
 
-```{r figure1, echo=FALSE, warning=FALSE, message=FALSE, fig.width=8, fig.height=7, fig.cap='The orthographic (x-axis) and phonological distance (y-axis) of each misspelled word from the correct ("target") spelling is shown for "assiduous" (top row) and "kaleidoscope" (bottom row). The left panels show misspellings where the participant rated the target as familiar, and the right panels show those corresponding to unfamiliar ratings for the target. Target words were chosen because they exhibited variability in the familarity rating across participants, where "assiduous" was in general a low familiarity word, and "kaleidoscope" was high by comparison. The origin of each plot represents the target itself, such that the distance of a given misspelling from the origin can be interpreted as the extent to which that misspelling is dissimilar from the target word either with respect to its orthographic structure (x-axis) or phonological structure (y-axis). Word labels (points) are colored based on the number of particular misspellings observed across participants. Dashed diagonals included as a reference.'}
+```{r figure1, echo=FALSE, warning=FALSE, message=FALSE, fig.width=8, fig.height=7, fig.cap='Here the points (labels) are jittered to minimize overlapping. The jittering introduces randomness into rendering the plot. The reason for this jittering is that without it the misspelled forms would overlap at each level of x- and y- such that you could only see one misspelling, and the rest would be plotted behind it. The left panels show misspellings where the participant rated the target as familiar, and the right panels show those corresponding to unfamiliar ratings for the target. Target words were chosen because they exhibited variability in the familiarity rating across participants, where “assiduous” was only familiar to 11 participants and “kaleidoscope” was reported as being familiar to 48 participants. The origin of each plot represents the target itself, such that the distance of a given misspelling from the origin can be interpreted as the extent to which that misspelling is dissimilar from the target word either with respect to its orthographic structure (x-axis) or phonological structure (y-axis). Word labels (points) are colored based on the number of particular misspellings observed across participants. Dashed diagonals are included as a reference.'}
 
 e %>%
   mutate(target_word = case_when(target_word == 'assiduous' ~ 'TARGET: "Assiduous"',
@@ -75,11 +76,9 @@ e %>%
         strip.text = element_text(size = 12))
 ```
 
-
-
-
-### Histogram 1: orthographic distance of incorrect spellings to target, binned
-This is visually depicted in the scatter version of the figure, but showing the data in a way that is obscured by the jitter. This one is for the orthographic distances (the y-axis), showing the histogram both for "assiduous" and "kaleidoscope". Specific misspellings within each level of x- are sorted from largest _n_ (at top of stack) to smallest (at bottom). I haven't written a figure caption for this, but can if we wanted to include it.
+## Extras
+### Histogram 1: orthographic distance of incorrect spellings to target
+This is visually depicted in the scatter version of the figure but shows the data in a way that is obscured slightly by the jitter. This one is for the orthographic distances (the x-axis), showing the histogram both for "assiduous" and "kaleidoscope". Specific misspellings within each level of x- are sorted from largest _n_ (at top of stack) to smallest (at bottom), where a larger vertical bar on the y-axis corresponds to more words with that particular misspelling.
 
 ```{r}
 
@@ -104,7 +103,7 @@ e %>%
 ```
 
 ### Histogram 2: phonological distance of incorrect spellings to target
-This is the binned version of the phonological distances.
+This is the same idea as Histogram 1 above but showing phonological distance instead of orthographic distance.
 
 ```{r}
 
