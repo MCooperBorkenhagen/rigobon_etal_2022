@@ -10,10 +10,11 @@ editor_options:
 ```{r setup, include=FALSE}
 
 require(readxl)
-require(tidyverse)
 require(Hmisc)
 require(knitr)
 require(papaja)
+require(tidyverse)
+filter = dplyr::filter
 
 knitr::opts_chunk$set(warning = FALSE, 
                       message = FALSE, 
@@ -73,10 +74,77 @@ e %>%
         legend.title.align = .5,
         legend.key.size = unit(3, "line"),
         legend.text = element_text(size = 12),
-        strip.text = element_text(size = 12))
+        strip.text = element_text(size = 12)) +
+  theme_apa()
 ```
 
+## Figure 2
+If I get the original "spell_schwa_project_long_2020_corrected22.xlsx" dataset, I can replicate Figure 2 here. Otherwise, here's the rendered image from the proof.
+
+```{r}
+knitr::include_graphics('figure2_tmp.png')
+
+```
+
+
 ## Extras
+### Figure 1 but with facets of set for variability (instead of familiarity)
+Figure 1 in the paper shows the estimated representational distance (orthography and phonology) for misspellings for "assiduous" and "kaleidoscope" as a function of the familiarity of the word (left versus rght panel) for the participant providing the mis/spelling. Alternatively in the figure below the panels are the set for variability response for that 
+
+
+```{r}
+e %>% 
+  select(participant_ID, target_word, item_sfv) %>% 
+  filter(participant_ID == 25) %>%  View()
+```
+
+
+```{r}
+
+e %>%
+  mutate(target_word = case_when(target_word == 'assiduous' ~ 'TARGET: "Assiduous"',
+                                 target_word == 'kaleidoscope' ~ 'TARGET: "Kaleidoscope"'),
+         item_sfv = case_when(item_sfv == 1 ~ 'Correct',
+                              item_sfv == 0 ~ 'Incorrect')) %>% 
+  group_by(target_word, participant_spelling) %>% 
+  summarise(n = n(),
+            ODL = first(ODL),
+            ODL_phon = first(ODL_phon),
+            item_sfv = first(item_sfv)) %>%
+  ggplot(aes(ODL, ODL_phon, label = participant_spelling, fill = n)) +
+  geom_abline(intercept = 0, slope = 1, color = 'grey55', linetype = 'dashed') +
+  geom_segment(aes(x = 0, y = 0, xend = 0, yend = 5), 
+               arrow = arrow(length = unit(0.5, "cm")), 
+               lwd = .1) +
+  geom_segment(aes(x = 0, y = 0, xend = 5, yend = 0), 
+               arrow = arrow(length = unit(0.5, "cm")),
+               lwd = .1) +
+  annotate(geom='label', size = 1.5, x=.12, y=.11, 
+           label='\nTARGET\n ', color='white', fill = 'black', family = 
+             'Times New Roman') +
+  geom_label(size = 1.5, position = position_jitter(width = .39, height = .2), color = 'black', family = 'Times New Roman') +
+  scale_fill_gradientn(colours = heat.colors(4, alpha = .6)) +
+  xlim(c(0, 5.5)) +
+  ylim(c(0, 5.5)) +
+  facet_grid(cols = vars(item_sfv), rows = vars(target_word)) +
+  labs(x = 'Orthographic distance of misspelling to target',
+       y = 'Phonological distance of misspelling to target',
+       title = 'Misspellings plotted by distance relative to correct (target) spelling',
+       subtitle = 'by set for variability outcome of the target for each participant',
+       fill = '# of participants\nwith misspelling\n') +
+  theme(text = element_text(family = 'Times New Roman'),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(hjust = .5, size = 16),
+        plot.subtitle = element_text(hjust = .5, size = 14),
+        legend.title.align = .5,
+        legend.key.size = unit(3, "line"),
+        legend.text = element_text(size = 12),
+        strip.text = element_text(size = 12)) +
+  theme_apa()
+
+```
+
+
 ### Histogram 1: orthographic distance of incorrect spellings to target
 This is visually depicted in the scatter version of the figure but shows the data in a way that is obscured slightly by the jitter. This one is for the orthographic distances (the x-axis), showing the histogram both for "assiduous" and "kaleidoscope". Specific misspellings within each level of x- are sorted from largest _n_ (at top of stack) to smallest (at bottom), where a larger vertical bar on the y-axis corresponds to more words with that particular misspelling.
 
@@ -128,3 +196,10 @@ e %>%
 
 ```
 
+### Figure 2
+
+```{r fig.cap="Interaction of total decoding score and spelling-to-pronunciation transparency rating in likelihood of accuracy on target spelling task."}
+
+
+
+```
