@@ -1,0 +1,370 @@
+---
+title: "Rigobon et al. (2023) - Supplement"
+runtime: shiny
+output:
+  html_document:
+    df_print: paged
+    css: "style.css"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+require(sjPlot)
+require(lme4)
+require(readxl)
+require(Hmisc)
+require(knitr)
+require(papaja)
+require(tidyverse)
+filter = dplyr::filter
+set.seed(111)
+knitr::opts_chunk$set(warning = FALSE, 
+                      message = FALSE, 
+                      cache = FALSE,
+                      echo = FALSE,
+                      out.extra = "",
+                      fig.pos = "t!",  sanitize = TRUE)
+options(knitr.table.format = "latex")
+options(knitr.kable.NA = '')
+
+# this dataset only consists of errors for our two words of focus
+errors = read_xlsx('data/errorvis_spelling_dist_data.xlsx') %>% 
+  mutate(item_familiarity = case_when(item_familiarity == 1 ~ 'Familiar',
+                                      item_familiarity == 0 ~ 'Unfamiliar'))
+
+
+distances = read_csv('data/distances.csv')
+
+
+tmp = read_xlsx("data/spell_schwa_project_long_2020_corrected22.xlsx") %>% 
+  filter(spell_corr_item == 0) %>% 
+  select(target_word, spell_item, fam_item, OLD, PLD, sfv_item)
+
+
+distances = distances %>% 
+  rename(target_word = target, spell_item = misspelling) %>% 
+  right_join(tmp, by = c('target_word', 'spell_item')) %>% glimpse() %>% 
+  select(target_word, spell_item, OLD = orth, PLD = phon, fam_item, sfv_item)
+
+
+```
+
+
+
+## Figure 1
+This is *Figure 1* in the paper. Here the points (labels) are jittered to minimize overlapping (called within the `position` argument in `geom_label()`), which introduces randomness into rendering the plot. All distances are calculated as Levenshtein distance.
+
+```{r figure1, echo=FALSE, warning=FALSE, message=FALSE, fig.width=8, fig.height=7, fig.cap='*Figure 1*. Here the points (labels) are jittered to minimize overlapping. The jittering introduces randomness into rendering the plot. The reason for this jittering is that without it the misspelled forms would overlap at each level of x- and y- such that you could only see one misspelling, and the rest would be plotted behind it. The left panels show misspellings where the participant rated the target as familiar, and the right panels show those corresponding to unfamiliar ratings for the target. Target words were chosen because they exhibited variability in the familiarity rating across participants, where “assiduous” was only familiar to 11 participants and “kaleidoscope” was reported as being familiar to 48 participants. The origin of each plot represents the target itself, such that the distance of a given misspelling from the origin can be interpreted as the extent to which that misspelling is dissimilar from the target word either with respect to its orthographic structure (x-axis) or phonological structure (y-axis). Word labels (points) are colored based on the number of particular misspellings observed across participants. Dashed diagonals are included as a reference.'}
+
+errors %>%
+  mutate(target_word = case_when(target_word == 'assiduous' ~ 'TARGET: "Assiduous"',
+                                 target_word == 'kaleidoscope' ~ 'TARGET: "Kaleidoscope"')) %>% 
+  group_by(target_word, participant_spelling) %>% 
+  summarise(n = n(),
+            ODL = first(ODL),
+            ODL_phon = first(ODL_phon),
+            item_familiarity = first(item_familiarity)) %>%
+  ggplot(aes(ODL, ODL_phon, label = participant_spelling, fill = n)) +
+  geom_abline(intercept = 0, slope = 1, color = 'grey55', linetype = 'dashed') +
+  geom_segment(aes(x = 0, y = 0, xend = 0, yend = 5), 
+               arrow = arrow(length = unit(0.5, "cm")), 
+               lwd = .1) +
+  geom_segment(aes(x = 0, y = 0, xend = 5, yend = 0), 
+               arrow = arrow(length = unit(0.5, "cm")),
+               lwd = .1) +
+  annotate(geom='label', size = 1.5, x=.12, y=.11, 
+           label='\nTARGET\n ', color='white', fill = 'black', family = 
+             'Times New Roman') +
+  geom_label(size = 1.5, position = position_jitter(width = .39, height = .2), color = 'black', family = 'Times New Roman') +
+  scale_fill_gradientn(colours = heat.colors(4, alpha = .6)) +
+  xlim(c(0, 5.5)) +
+  ylim(c(0, 5.5)) +
+  facet_grid(cols = vars(item_familiarity), rows = vars(target_word)) +
+  labs(x = 'Orthographic distance of misspelling to target',
+       y = 'Phonological distance of misspelling to target',
+       title = 'Misspellings of "assiduous" and "kaleidoscope" on target spelling task',
+       subtitle = 'by familiarity of the target for each participant',
+       fill = '# of participants\nwith misspelling\n') +
+  theme_minimal() +
+  theme(text = element_text(family = 'Times New Roman'),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(hjust = .5, size = 16),
+        plot.subtitle = element_text(hjust = .5, size = 14),
+        legend.title.align = .5,
+        legend.key.size = unit(3, "line"),
+        legend.text = element_text(size = 12),
+        strip.text = element_text(size = 12))
+  
+
+```
+
+\newline
+\newline
+
+#### Interactive version of *Figure 1*
+Distances were derived for all words in the target set relative to each misspelling associated with the target. The interactive graph below allows you to select a word from the 25 word list of targets and see the distances for each misspelling relative to the the target, with the x-axis again being orthographic distance calculated as Levenshtein distance, and the y-axis being phonological distance calculated the same way. The left pane shows distances for misspellings where the associated target was identified as unfamiliar, and the right pane shows those rated as familiar. Note that in cases where a panel is missing, data for the missing level of familiarity are not present in the observed data.
+
+
+```{r interactive1, echo=FALSE}
+shinyApp(
+
+  ui = fluidPage(
+    selectInput("target_word", "Target:",
+                choices = unique(distances$target_word)),
+    plotOutput("distance_plot1")
+  ),
+
+  server = function(input, output) {
+    output$distance_plot1 = renderPlot({
+      
+      distances %>% 
+        filter(target_word == input$target_word) %>% 
+        group_by(target_word, spell_item, fam_item) %>% 
+        summarise(n_misspellings = n(),
+            OLD = first(OLD), 
+            PLD = first(PLD)) %>% 
+        filter(!is.na(fam_item)) %>% 
+        mutate(target_word_title = str_to_title(target_word)) %>% 
+        mutate(target_word = str_c('TARGET:', target_word_title, sep = ' '),
+               fam_item = case_when(fam_item == 0 ~ "Unfamiliar",
+                                    fam_item == 1 ~ "Familiar")) %>% 
+        ggplot(aes(OLD, PLD, label = spell_item, fill = n_misspellings)) +
+        geom_abline(intercept = 0, slope = 1, color = 'grey55', linetype = 'dashed') +
+        geom_segment(aes(x = 0, y = 0, xend = 0, yend = 5), 
+                         arrow = arrow(length = unit(0.5, "cm")), 
+                         lwd = .1) +
+        geom_segment(aes(x = 0, y = 0, xend = 5, yend = 0), 
+                         arrow = arrow(length = unit(0.5, "cm")),
+                         lwd = .1) +
+        annotate(geom='label', size = 2.5, x=.12, y=.11, 
+                     label='\nTARGET\n ', color='white', fill = 'black', family = 
+                       'Times New Roman') +
+        geom_label(size = 3, 
+                       position = position_jitter(width = .39, height = .2), 
+                       color = 'black', family = 'Times New Roman') +
+        labs(title = 'Misspellings of selected target in 2D space',
+             subtitle = 'columns correspond to familiarity for all participants',
+             x = 'Orthographic distance from target',
+             y = 'Phonological distance from target',
+             fill = '# misspells') +
+          scale_fill_gradientn(colours = heat.colors(4, alpha = .6)) +
+          xlim(c(0, 5.5)) +
+          ylim(c(0, 5.5)) +
+          facet_grid(cols = vars(fam_item), rows = vars(target_word)) +
+          theme_minimal() +
+          theme(plot.title = element_text(hjust = .5, size = 22),
+                axis.title = element_text(size = 24),
+                plot.subtitle = element_text(size = 20, hjust = .5),
+                legend.title = element_text(size = 13),
+                strip.text = element_text(size = 16),
+                strip.background = element_rect(fill = 'grey'),
+                text = element_text(family = 'Times New Roman'),
+                legend.title.align = .5,
+                axis.title.x = element_text(margin = margin(t = 25, b = 0)))
+      })
+  },
+  options = list(height = 700)
+)
+```
+
+### *Figure 2*
+Below you see _Figure 2_ from the paper. Decoding ability and transparency rating are both mean-centered predictors with each unit away from the mean representing one standard deviation (e.g., 0.81 [red line] in the legend indicates a spelling-to-pronunciation transparency rating that is one standard deviation above the average score; -10 on the x-axis indicates a raw total score on the phonemic decoding efficiency task that is 1 standard deviation below the average raw total score).
+
+
+```{r figure2, fig.cap="*Figure 2*. Interaction of total decoding score and spelling-to-pronunciation transparency rating in likelihood of accuracy on target spelling task.", fig.height=7}
+
+# this is read in from the official dataset, instead of the more limited data for visualization used above
+read_xlsx("data/spell_schwa_project_long_2020_corrected22.xlsx") %>% 
+  mutate(c_n_morph = scale(Nmorph_Nancy, center = TRUE, scale = FALSE),
+         c_freq = scale(Log_Freq_HAL, center = TRUE, scale = FALSE),
+         decoding_skill = scale(pde_total, center = TRUE, scale = FALSE),
+         c_sfv = scale(sfv_total, center = TRUE, scale = FALSE),
+         c_fam_total = scale(fam_total, center = TRUE, scale = FALSE),
+         transparency_rating = scale(spt_rating, center = TRUE, scale = FALSE)) %>% 
+  rename(spelling_accuracy=spell_corr_item) %>% 
+  glmer(spelling_accuracy~(1|target_word)+(1|participant_ID)
+        + c_sfv + c_n_morph + c_freq + decoding_skill + c_fam_total + transparency_rating*decoding_skill + fam_item + sfv_item, 
+        data = ., family = binomial(link="logit")) %>% 
+  plot_model(., type = "pred", terms = c("decoding_skill [all]", "transparency_rating")) +
+  labs(x = "Decoding skill", y = "Spelling accuracy", 
+       title = "Predicted probabilities of spelling accuracy",
+       color = "Transparency") +
+  theme_apa() +
+  theme(text = element_text(family = 'Times New Roman'),
+        legend.box.background = element_rect(colour = 'black', size = 1),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 16),
+        legend.position = c(.22, .85),
+        plot.title =  element_text(size = 22),
+        axis.title = element_text(size = 22)
+        )
+
+```
+\newline
+---------
+# Extras
+### Misspellings across set for variability
+Figure 1 in the paper shows the estimated representational distance (orthography and phonology) for misspellings for "assiduous" and "kaleidoscope" as a function of the familiarity of the word (left versus rght panel) for participants providing the mis/spelling. Compare to *Figure 1* where panels correspond to rated familiarity. The left panel shows misspellings in instances where set for variability response was correct, and the right panel shows those for incorrect responses.
+
+
+```{r extraSFV, echo=FALSE}
+
+errors %>%
+  mutate(target_word = case_when(target_word == 'assiduous' ~ 'TARGET: "Assiduous"',
+                                 target_word == 'kaleidoscope' ~ 'TARGET: "Kaleidoscope"'),
+         item_sfv = case_when(item_sfv == 1 ~ 'Correct',
+                              item_sfv == 0 ~ 'Incorrect')) %>% 
+  group_by(target_word, participant_spelling, item_sfv) %>% 
+  summarise(n = n(),
+            ODL = first(ODL),
+            ODL_phon = first(ODL_phon)) %>%
+  ggplot(aes(ODL, ODL_phon, label = participant_spelling, fill = n)) +
+  geom_abline(intercept = 0, slope = 1, color = 'grey55', linetype = 'dashed') +
+  geom_segment(aes(x = 0, y = 0, xend = 0, yend = 5), 
+               arrow = arrow(length = unit(0.5, "cm")), 
+               lwd = .1) +
+  geom_segment(aes(x = 0, y = 0, xend = 5, yend = 0), 
+               arrow = arrow(length = unit(0.5, "cm")),
+               lwd = .1) +
+  annotate(geom='label', size = 1.5, x=.12, y=.11, 
+           label='\nTARGET\n ', color='white', fill = 'black', family = 
+             'Times New Roman') +
+  geom_label(size = 1.5, position = position_jitter(width = .39, height = .2), color = 'black', family = 'Times New Roman') +
+  scale_fill_gradientn(colours = heat.colors(4, alpha = .6)) +
+  xlim(c(0, 5.5)) +
+  ylim(c(0, 5.5)) +
+  facet_grid(cols = vars(item_sfv), rows = vars(target_word)) +
+  labs(x = 'Orthographic distance of misspelling to target',
+       y = 'Phonological distance of misspelling to target',
+       title = 'Misspellings plotted by distance relative to target spelling',
+       subtitle = 'by set for variability accuracy corresponding to misspelling',
+       fill = '# misspells') +
+  theme_minimal() +
+  theme(text = element_text(family = 'Times New Roman'),
+        axis.title = element_text(size = 16),
+        plot.title = element_text(hjust = .5, size = 16),
+        plot.subtitle = element_text(hjust = .5, size = 14),
+        legend.text = element_text(size = 12),
+        strip.text = element_text(size = 12),
+        axis.title.x = element_text(margin = margin(t = 25, b = 0)))
+  
+
+```
+
+\newline
+
+This is the interactive that allows you to look at the 2D plot for any word in the target set corresponding to the graph above. Select a word from the drop down menu and the corresponding plot will appear for that word. Note that in cases where a panel is missing, data for the missing level of set for variability are not present in the observed data.
+
+
+```{r interactive2, echo=FALSE}
+shinyApp(
+  
+  ui = fluidPage(
+    selectInput("target_word", "Target:",
+                choices = unique(distances$target_word)),
+    plotOutput("distance_plot2")
+  ),
+  
+  server = function(input, output) {
+    output$distance_plot2 = renderPlot({
+      
+      
+      distances %>% 
+        filter(target_word == input$target_word) %>% 
+        group_by(target_word, spell_item, sfv_item) %>% 
+        summarise(n_misspellings = n(),
+                  OLD = first(OLD), 
+                  PLD = first(PLD)) %>% 
+        filter(!is.na(sfv_item)) %>% 
+        mutate(target_word_title = str_to_title(target_word)) %>% 
+        mutate(target_word = str_c('TARGET:', target_word_title, sep = ' '),
+               sfv_item = case_when(sfv_item == 0 ~ "Incorrect",
+                                    sfv_item == 1 ~ "Correct")) %>% 
+        ggplot(aes(OLD, PLD, label = spell_item, fill = n_misspellings)) +
+        geom_abline(intercept = 0, slope = 1, color = 'grey55', linetype = 'dashed') +
+        geom_segment(aes(x = 0, y = 0, xend = 0, yend = 5), 
+                     arrow = arrow(length = unit(0.5, "cm")), 
+                     lwd = .1) +
+        geom_segment(aes(x = 0, y = 0, xend = 5, yend = 0), 
+                     arrow = arrow(length = unit(0.5, "cm")),
+                     lwd = .1) +
+        annotate(geom='label', size = 2.5, x=.12, y=.11, 
+                 label='\nTARGET\n ', color='white', fill = 'black', family = 
+                   'Times New Roman') +
+        geom_label(size = 3, 
+                   position = position_jitter(width = .39, height = .2), 
+                   color = 'black', family = 'Times New Roman') +
+        labs(title = 'Misspellings of selected target in 2D space',
+             subtitle = 'by set for variability accuracy corresponding to misspelling',
+             x = 'Orthographic distance from target',
+             y = 'Phonological distance from target',
+             fill = '# misspells') +
+        scale_fill_gradientn(colours = heat.colors(4, alpha = .6)) +
+        xlim(c(0, 5.5)) +
+        ylim(c(0, 5.5)) +
+        facet_grid(cols = vars(sfv_item), rows = vars(target_word)) +
+        theme_minimal() +
+        theme(plot.title = element_text(hjust = .5, size = 22),
+              plot.subtitle = element_text(hjust = .5, size = 20),
+              axis.title = element_text(size = 24),
+              legend.title = element_text(size = 13),
+              strip.text = element_text(size = 16),
+              strip.background = element_rect(fill = 'grey'),
+              text = element_text(family = 'Times New Roman'),
+              axis.title.x = element_text(margin = margin(t = 25, b = 0)))
+      
+      
+    })
+  },
+  options = list(height = 700)
+)
+```
+
+### Histogram 1: orthographic distances of misspellings
+This is visually depicted in the scatter version of the figure but shows the data in a way that is obscured slightly by the jitter, and collapses across familiarity. This one is for the orthographic distances (the x-axis), showing the histogram both for "assiduous" and "kaleidoscope". Specific misspellings within each level of x- are sorted from largest _n_ (at top of stack) to smallest (at bottom), where a larger vertical bar on the y-axis corresponds to more words with that particular misspelling.
+
+```{r histogram1, out.width="100%"}
+
+
+errors %>% 
+  group_by(target_word, participant_spelling) %>% 
+  summarise(n = n(),
+            ODL = first(ODL)) %>% 
+  ggplot(aes(ODL, n, fill = reorder(participant_spelling, -n))) +
+  geom_segment(aes(x = -.5, y = -.85, xend = 5.5, yend = -.85), 
+               arrow = arrow(length = unit(0.4, "cm")), lwd = .5) +
+  geom_bar(stat = 'identity') +
+  geom_text(aes(label=participant_spelling), size = 2,
+            position = position_stack(vjust = .5),
+            family = 'Times New Roman') +
+  theme_classic() +
+  theme(text = element_text(family = 'Times New Roman'), legend.position = 'none',
+        axis.title = element_text(size = 14)) +
+  labs(x = 'Orthographic distance from target (increasing)', y = 'Count') +
+  facet_grid(~target_word)
+
+```
+\newline
+### Histogram 2: phonological distances of misspellings  
+This is the same idea as Histogram 1 above but showing phonological distance instead of orthographic distances.
+
+```{r histogram2, out.width="100%"}
+errors %>% 
+  group_by(target_word, participant_spelling) %>% 
+  summarise(n = n(),
+            ODL_phon = first(ODL_phon)) %>% 
+  ggplot(aes(ODL_phon, n, fill = reorder(participant_spelling, -n))) +
+  geom_segment(aes(x = -.5, y = -.85, xend = 5.5, yend = -.85), 
+               arrow = arrow(length = unit(0.4, "cm")), lwd = .5) +
+  geom_bar(stat = 'identity') +
+  geom_text(aes(label=participant_spelling), size = 2,
+            position = position_stack(vjust = .5),
+            family = 'Times New Roman') +
+  theme_classic() +
+  theme(text = element_text(family = 'Times New Roman'), legend.position = 'none',
+        axis.title = element_text(size = 14)) +
+  labs(x = 'Phonological distance from target (increasing)', y = 'Count') +
+  facet_grid(~target_word)
+
+```
